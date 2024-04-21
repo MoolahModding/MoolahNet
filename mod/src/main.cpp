@@ -22,7 +22,7 @@
 #define NEW_PD3
 
 //#define MOOLAHNET_DEVELOPMENT
-const char* MOOLAHNET_VERSION = "0.1";
+const char* MOOLAHNET_VERSION = "0.3";
 #define MOOLAHNET_SERVER_PORT 20250
 
 #include <MinHook.h>
@@ -284,7 +284,7 @@ const char* USBZStateMachine__SetState_Shipping_mask = "xxxx?xxxxxx?xx";
 const char* USBZAnalyticsManager__SendLobbyJoined_Shipping_pattern = "\x48\x89\x5C\x24\x00\x48\x89\x74\x24\x00\x48\x89\x7C\x24\x00\x55\x41\x54\x41\x55\x41\x56\x41\x57\x48\x8B\xEC\x48\x83\xEC\x00\x48\x8B\x02\x4C\x8B\xE9";
 const char* USBZAnalyticsManager__SendLobbyJoined_Shipping_mask = "xxxx?xxxx?xxxx?xxxxxxxxxxxxxxx?xxxxxx";
 
-unsigned __int64 FindPattern(char* module, const char* funcname, const char* pattern, const char* mask);
+unsigned __int64 FindPattern(std::string module, const char* funcname, const char* pattern, const char* mask);
 
 //TSharedRef<FUniqueNetIdAccelbyteResource>* GetAccelbyteNetIdFromString(FString str) {
 //  TSharedRef<FUniqueNetIdAccelbyteResource>* Ref = new TSharedRef<FUniqueNetIdAccelbyteResource>(nullptr); // breaking unreal's rules here, TSharedRefs cant be nullptr
@@ -798,15 +798,31 @@ public:
     CreateThread(NULL, NULL, [](LPVOID) {
       SetThreadDescription(GetCurrentThread(), STR("MoolahNet-SigScanningThread"));
 
-      USBZStateMachine__SetState = (USBZStateMachine__SetState_t)FindPattern((char*)"PAYDAY3Client-Win64-Shipping.exe", "USBZStateMachine__SetState",
+      std::string Executable = "";
+
+      TCHAR szFileName[4096];
+      GetModuleFileName(NULL, szFileName, 4096);
+
+      //std::cout << wstr_to_string(std::wstring(szFileName)) << std::endl;
+
+      if (std::wstring(szFileName).find(L"Win64") != std::wstring::npos) { // Win64
+        Executable = "PAYDAY3Client-Win64-Shipping.exe";
+      }
+      else { // WinGDK
+        Executable = "PAYDAY3Client-WinGDK-Shipping.exe";
+      }
+
+      std::cout << "Scanning for sigs in " << Executable << std::endl;
+
+      USBZStateMachine__SetState = (USBZStateMachine__SetState_t)FindPattern(Executable, "USBZStateMachine__SetState",
         USBZStateMachine__SetState_Shipping_pattern,
         USBZStateMachine__SetState_Shipping_mask);
 
-      USBZMatchmaking__SetArmadaInfo = (USBZMatchmaking__SetArmadaInfo_t)FindPattern((char*)"PAYDAY3Client-Win64-Shipping.exe", "USBZMatchmaking__SetArmadaInfo",
+      USBZMatchmaking__SetArmadaInfo = (USBZMatchmaking__SetArmadaInfo_t)FindPattern(Executable, "USBZMatchmaking__SetArmadaInfo",
         USBZMatchmaking__SetArmadaInfo_Shipping_pattern,
         USBZMatchmaking__SetArmadaInfo_Shipping_mask);
 
-      USBZAnalyicsManager__SendLobbyJoined = (USBZAnalyticsManager__SendLobbyJoined_t)FindPattern((char*)"PAYDAY3Client-Win64-Shipping.exe", "USBZAnalyicsManager__SendLobbyJoined",
+      USBZAnalyicsManager__SendLobbyJoined = (USBZAnalyticsManager__SendLobbyJoined_t)FindPattern(Executable, "USBZAnalyicsManager__SendLobbyJoined",
         USBZAnalyticsManager__SendLobbyJoined_Shipping_pattern,
         USBZAnalyticsManager__SendLobbyJoined_Shipping_mask);
 
@@ -880,7 +896,7 @@ MODULEINFO GetModuleInfo(std::string szModule)
 }
 
 
-unsigned __int64 FindPattern(char* module, const char* funcname, const char* pattern, const char* mask)
+unsigned __int64 FindPattern(std::string module, const char* funcname, const char* pattern, const char* mask)
 {
   MODULEINFO mInfo = GetModuleInfo(module);
   DWORDLONG base = (DWORDLONG)mInfo.lpBaseOfDll;

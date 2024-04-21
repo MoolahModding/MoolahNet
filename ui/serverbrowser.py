@@ -11,6 +11,8 @@ from PyQt5.QtGui import QIcon
 import os
 import time
 
+import random
+
 import socket
 MOOLAHNET_SOCKET_PORT = 20250
 MOOLAHNET_MWS_ID = "47524"
@@ -108,7 +110,7 @@ class LoginWindow(QWidget):
         self.initUI()
 
     def initUI(self):
-        #self.setFixedSize(400, 300)
+        self.setFixedSize(400, 300)
 
         self.setWindowTitle("MoolahNet Login")
         layout = QVBoxLayout()
@@ -205,11 +207,12 @@ class ServerBrowser(QWidget):
         self.setFixedSize(800, 600)
 
         layout = QVBoxLayout()
-        groupbox = QGroupBox("Server Browser")
+        self.groupbox = QGroupBox("Server Browser")
         vbox = QVBoxLayout()
 
         self.server_tree = QTreeWidget()
         self.server_tree.setHeaderLabels(["Map", "Difficulty", "Players", "Region", "Cross-Platform", "ID"])
+        self.server_tree.setSortingEnabled(True)
         vbox.addWidget(self.server_tree)
 
         # Add filter dropdowns for map names, difficulty, platform
@@ -226,7 +229,7 @@ class ServerBrowser(QWidget):
 
         self.platform_filter_dropdown = QComboBox()
         self.platform_filter_dropdown.addItem("All Platforms")
-        self.platform_filter_dropdown.addItems(["Steam", "EpicGames"])
+        self.platform_filter_dropdown.addItems(["Steam", "EpicGames", "PS5", "XBOX"])
         self.platform_filter_dropdown.currentIndexChanged.connect(self.populateServerTree)
         vbox.addWidget(self.platform_filter_dropdown)
 
@@ -269,6 +272,11 @@ class ServerBrowser(QWidget):
         self.join_button.setEnabled(False)  # Initially disabled
         vbox.addWidget(self.join_button)
 
+        self.random_session_button = QPushButton("Quickplay - Join random session based on filter criteria")
+        self.random_session_button.clicked.connect(self.quickplay)
+        self.random_session_button.setEnabled(True)
+        vbox.addWidget(self.random_session_button)
+
         # Hide the ID column (last column)
         self.id_column_index = self.server_tree.columnCount() - 1
         self.server_tree.setColumnHidden(self.id_column_index, True)
@@ -277,13 +285,14 @@ class ServerBrowser(QWidget):
         self.server_tree.itemDoubleClicked.connect(self.openPlayerProfile)  # Connect double click event
         #self.populateServerTree()
 
-        groupbox.setLayout(vbox)
-        layout.addWidget(groupbox)
+        self.groupbox.setLayout(vbox)
+        layout.addWidget(self.groupbox)
 
         self.setLayout(layout)
-        self.setFixedHeight(layout.sizeHint().height() + 300)
-        self.setFixedWidth(layout.sizeHint().width() + 600)
+        self.setMinimumHeight(layout.sizeHint().height() + 300)
+        self.setMinimumWidth(layout.sizeHint().width() + 600)
         self.setWindowTitle("MoolahNet")
+        
 
     # Define a map for the level name resolution
     level_map = {
@@ -463,7 +472,6 @@ class ServerBrowser(QWidget):
                 
                 if not checkVersion(session):
                     continue
-                
 
                 for member in session["members"]:
                     if member.get("status") == "JOINED":
@@ -492,6 +500,9 @@ class ServerBrowser(QWidget):
                     continue
 
 
+                if "Syntax" in map_asset_names[0]:
+                    continue
+
                 # Check all the filters and fill out the server tree data
                 session_region = self.region_code_to_name(session.get("DSInformation", {}).get("Server", {}).get("region"))
                 if not selected_regions or session_region in selected_regions:
@@ -517,7 +528,9 @@ class ServerBrowser(QWidget):
                         # If servers are empty (will be closed) or full (API should not report these but you never know)
                         if only_joinable and (player_count == 0 or player_count == 4):
                             self.server_tree.invisibleRootItem().removeChild(server_item)
-                            
+        
+        #self.server_count.setText(f"Found {self.server_tree.invisibleRootItem().childCount()} sessions")
+        self.groupbox.setTitle(f"Server Browser - {self.server_tree.invisibleRootItem().childCount()} sessions")
         # Statistics, can be removed
         #print(f"\n\n\nFound {active_sessions} active sessions\n\n\nWith {total_players} total players\n\n\n")
 
@@ -542,6 +555,22 @@ class ServerBrowser(QWidget):
                 except: # Socket has disconnected
                     self.connectToGameServer()
                     self.game_socket.send(server_id.encode())
+
+    def quickplay(self):
+        session_idx = random.randint(0, self.server_tree.invisibleRootItem().childCount()-1)
+
+        session = self.server_tree.invisibleRootItem().child(session_idx).text(self.id_column_index)
+        if not self.game_socket.connected():
+            self.connectToGameServer()
+
+        if self.game_socket.connected():
+            print(f"Joining server {session}")
+            try:
+                self.game_socket.send(session.encode())
+            except: # Socket has disconnected
+                self.connectToGameServer()
+                self.game_socket.send(session.encode())
+        pass
 
     def connectToGameServer(self):
         self.game_socket.connectToSocket()
