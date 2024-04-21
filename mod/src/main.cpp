@@ -2,6 +2,8 @@
 #include <Mod/CppUserModBase.hpp>
 #include <Unreal/FString.hpp>
 #include <Unreal/UClass.hpp>
+#include <Unreal/UFunction.hpp>
+#include <Unreal/UFunctionStructs.hpp>
 #include <Unreal/UObject.hpp>
 #include <Unreal/UObjectGlobals.hpp>
 
@@ -453,6 +455,9 @@ std::wstring_convert<std::codecvt_utf8_utf16<wchar_t>> converter;
 std::string FString_to_std_string(FString str) {
   return converter.to_bytes(str.GetCharArray());
 }
+std::string wstr_to_string(std::wstring wstr) {
+  return converter.to_bytes(wstr);
+}
 FString wstr_to_fstring(const std::wstring& wide) {
   return FString(wide.c_str());
 }
@@ -567,8 +572,12 @@ void __fastcall USBZMatchmaking__SetArmadaInfo_h(USBZMatchmaking* _this, FSBZArm
   USBZMatchmaking__SetArmadaInfo_o(_this, armadainfo);
 }
 
+#endif
+
+std::wstring G_CurrentGameState;
 USBZStateMachine__SetState_t USBZStateMachine__SetState_o;
 void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName* StateName, USBZStateMachineData* InData) {
+#ifdef MOOLAHNET_DEVEOPMENT
   std::cout << "USBZStateMachine is changing states to state: " << *StateName << std::endl;
 
   if (*StateName == FName(STR("ABMatchmaking"))) {
@@ -580,10 +589,10 @@ void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName* Sta
     }
     stream.close();
   }
-
+#endif
+  G_CurrentGameState = StateName->ToString();
   USBZStateMachine__SetState_o(_this, StateName, InData);
 }
-#endif
 
 masesk::EasySocket _server_socket;
 void socket_message(const std::string& data) {
@@ -604,6 +613,10 @@ void socket_message(const std::string& data) {
     return;
   }
 
+  if (wstr_to_string(G_CurrentGameState) != "GameStart") {
+    return; // user is not in a state where they can join a match
+  }
+  
   nlohmann::json session = nlohmann::json::parse(data);
 
   /*FString unreal_string = str_to_fstring(session[""]); // unreal string of party code
@@ -726,11 +739,7 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
   //in_data.ServerInfo = TOptional<FSBZArmadaInfo>(armada_info);
 
   FreezeLobbyJoinedAnalytics = true;
-#ifdef MOOLAHNET_DEVELOPMENT
   USBZStateMachine__SetState_o
-#else
-  USBZStateMachine__SetState
-#endif
     (statemachine, &next_state, in_data);
   return;
 }
@@ -824,18 +833,22 @@ public:
       sstream2 << FUniqueNetIdAccelbyteResource__ctor;
       MessageBox(NULL, converter.from_bytes(sstream2.str()).c_str(), STR("FUniqueNetIdAccelbyteResource"), NULL);*/
 
+      if (USBZStateMachine__SetState == NULL) {
+        MessageBoxA(GetActiveWindow(), "USBZStateMachine::SetState is null, contact the mod author.", "MoolahNet - Fatal Error", NULL);
+        return (DWORD)TRUE;
+      }
+
       MH_Initialize();
 
       MH_CreateHook((LPVOID)USBZAnalyicsManager__SendLobbyJoined, USBZAnalyicsManager__SendLobbyJoined_h, reinterpret_cast<LPVOID*>(USBZAnalyicsManager__SendLobbyJoined_o));
       MH_EnableHook((LPVOID)USBZAnalyicsManager__SendLobbyJoined);
-#ifdef MOOLAHNET_DEVELOPMENT
-
-      MH_CreateHook((LPVOID)USBZMatchmaking__SetArmadaInfo, &USBZMatchmaking__SetArmadaInfo_h, reinterpret_cast<LPVOID*>(&USBZMatchmaking__SetArmadaInfo_o));
-      MH_EnableHook((LPVOID)USBZMatchmaking__SetArmadaInfo);
 
       MH_CreateHook((LPVOID)USBZStateMachine__SetState, &USBZStateMachine__SetState_h, reinterpret_cast<LPVOID*>(&USBZStateMachine__SetState_o));
       MH_EnableHook((LPVOID)USBZStateMachine__SetState);
 
+#ifdef MOOLAHNET_DEVELOPMENT
+      MH_CreateHook((LPVOID)USBZMatchmaking__SetArmadaInfo, &USBZMatchmaking__SetArmadaInfo_h, reinterpret_cast<LPVOID*>(&USBZMatchmaking__SetArmadaInfo_o));
+      MH_EnableHook((LPVOID)USBZMatchmaking__SetArmadaInfo);
 #endif
 
       return (DWORD)TRUE;

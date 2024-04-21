@@ -4,7 +4,7 @@ import base64
 import requests
 import qdarktheme
 import webbrowser
-from PyQt5.QtCore import Qt, pyqtSignal
+from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QGroupBox, QLabel, QTreeWidget, QTreeWidgetItem, QHeaderView, QPushButton, QComboBox, QCheckBox, QScrollArea, QLineEdit, QMessageBox
 from PyQt5.QtGui import QIcon
 
@@ -108,7 +108,7 @@ class LoginWindow(QWidget):
         self.initUI()
 
     def initUI(self):
-        self.setFixedSize(400, 300)
+        #self.setFixedSize(400, 300)
 
         self.setWindowTitle("MoolahNet Login")
         layout = QVBoxLayout()
@@ -136,6 +136,7 @@ class LoginWindow(QWidget):
         layout.addWidget(self.login_button)
         
         self.setLayout(layout)
+        self.setBaseSize(layout.sizeHint())
 
     def updateLoginButtonState(self):
         if self.disclaimer_checkbox.isChecked():
@@ -252,7 +253,8 @@ class ServerBrowser(QWidget):
         vbox.addWidget(scroll_area)
 
         # Add tickbox for joinable lobbies
-        self.joinable_lobbies_checkbox = QCheckBox("Only find joinable lobbies")
+        self.joinable_lobbies_checkbox = QCheckBox("Only find joinable lobbies (hide full lobbies)")
+        self.joinable_lobbies_checkbox.setChecked(True)
         self.joinable_lobbies_checkbox.stateChanged.connect(self.populateServerTree)
         vbox.addWidget(self.joinable_lobbies_checkbox)
 
@@ -279,6 +281,8 @@ class ServerBrowser(QWidget):
         layout.addWidget(groupbox)
 
         self.setLayout(layout)
+        self.setFixedHeight(layout.sizeHint().height() + 300)
+        self.setFixedWidth(layout.sizeHint().width() + 600)
         self.setWindowTitle("MoolahNet")
 
     # Define a map for the level name resolution
