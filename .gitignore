@@ -1,0 +1,17 @@
+mod/Binaries
+mod/build
+mod/Intermediates/
+mod/.xmake
+mod/vsxmake2022
+
+staging
+
+pd3debugging/vs2022stack.txt
+pd3debugging/mapped_stack.txt
+
+ui/MoolahNet-Config.json
+ui/build
+ui/dist
+ui/serverbrowser.spec
+
+server.json

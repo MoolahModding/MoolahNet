@@ -1,0 +1,3 @@
+requests
+pyqtdarktheme
+PyQt5

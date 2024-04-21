@@ -1,0 +1,19 @@
+cmake_minimum_required(VERSION 3.18)
+
+project(MoolahNet)
+
+add_subdirectory("dependencies/RE-UE4SS")
+
+project(MoolahNet)
+
+file(GLOB_RECURSE SOURCE src/*.cpp)
+
+add_library(MoolahNet SHARED
+  ${SOURCE}
+)
+
+target_include_directories(MoolahNet PUBLIC
+dependencies/easy-socket/include
+)
+
+target_link_libraries(MoolahNet PUBLIC UE4SS)

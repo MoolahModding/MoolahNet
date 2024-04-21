@@ -1,0 +1,1 @@
+xmake project -k vsxmake2022 -y

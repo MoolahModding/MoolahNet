@@ -1,0 +1,15 @@
+#PAYDAY3Client-Win64-Shipping.exe
+0000000140C1C7E0|USBZStateMachine::SetState
+0000000140C1C980|USBZStateMachine::SetStateInternal
+
+0000000143E0F480|USBZAnalyticsManager::SendLobbyJoined
+
+0000000143EDE280|USBZClientStateMachineState::OnEnter
+0000000143EE3170|USBZStateMachineStateOutro::OnEnter
+
+0000000140C1CD30|USBZStateMachineData::StaticClass
+
+00000001419967F0|FRunnableThreadWin::Run
+0000000141990660|FRunnableThreadWin::GuardedRun
+0000000141881360|FRunnableThread::FreeTls
+00000001418962B0|FRunnableThread::SetTls
