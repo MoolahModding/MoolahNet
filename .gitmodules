@@ -3,4 +3,4 @@
 	url = https://github.com/HW12Dev/easy-socket
 [submodule "mod/dependencies/RE-UE4SS"]
 	path = mod/dependencies/RE-UE4SS
-	url = https://github.com/UE4SS-RE/RE-UE4SS.git
+	url = https://github.com/UE4SS-RE/RE-UE4SS
