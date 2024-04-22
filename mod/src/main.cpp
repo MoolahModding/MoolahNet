@@ -22,7 +22,7 @@
 #define NEW_PD3
 
 //#define MOOLAHNET_DEVELOPMENT
-const char* MOOLAHNET_VERSION = "0.3";
+const char* MOOLAHNET_VERSION = "0.4";
 #define MOOLAHNET_SERVER_PORT 20250
 
 #include <MinHook.h>
@@ -800,19 +800,13 @@ public:
 
       std::string Executable = "";
 
-      TCHAR szFileName[4096];
-      GetModuleFileName(NULL, szFileName, 4096);
-
       //std::cout << wstr_to_string(std::wstring(szFileName)) << std::endl;
-
-      if (std::wstring(szFileName).find(L"Win64") != std::wstring::npos) { // Win64
-        Executable = "PAYDAY3Client-Win64-Shipping.exe";
-      }
-      else { // WinGDK
-        Executable = "PAYDAY3Client-WinGDK-Shipping.exe";
-      }
-
-      std::cout << "Scanning for sigs in " << Executable << std::endl;
+//#define XBOX
+#ifdef XBOX
+      Executable = "PAYDAY3Client-WinGDK-Shipping.exe";
+#else
+      Executable = "PAYDAY3Client-Win64-Shipping.exe";
+#endif
 
       USBZStateMachine__SetState = (USBZStateMachine__SetState_t)FindPattern(Executable, "USBZStateMachine__SetState",
         USBZStateMachine__SetState_Shipping_pattern,
