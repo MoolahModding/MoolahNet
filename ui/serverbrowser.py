@@ -18,6 +18,75 @@ MOOLAHNET_SOCKET_PORT = 20250
 MOOLAHNET_MWS_ID = "47524"
 MOOLAHNET_MWS_ENABLED = True
 
+config_file_path = "./MoolahNet-Config.json"
+class Config():
+    def __init__(self):
+        self.load()
+
+    def save(self):
+        fp = open(config_file_path, 'w')
+        json.dump(self.config_data, fp)
+        fp.close()
+        pass
+    
+    def load(self):
+        if os.path.exists(config_file_path):
+            fp = open(config_file_path, 'r')
+            self.config_data = json.load(fp)
+            fp.close()
+        else:
+            self.config_data = {}
+            self.config_data["token"] = ""
+            self.config_data["token_expires"] = 0
+            self.config_data["refresh_token"] = ""
+            self.config_data["refresh_token_expires"] = 0
+            self.save()
+        pass
+    
+    def token(self):
+        return self.config_data["token"]
+    def refresh(self):
+        return self.config_data["refresh_token"]
+    def refresh_expires(self):
+        return self.config_data["refresh_token_expires"]
+    
+    def token_or_refresh_available(self):
+        return time.time() < self.config_data["token_expires"] or time.time() < self.refresh_expires()
+
+    def token_expired(self):
+        return time.time() > self.config_data["token_expires"]
+    
+    def set_token(self, token, expires):
+        self.config_data["token"] = token
+        self.config_data["token_expires"] = expires
+    def set_refresh(self, refresh, expires):
+        self.config_data["refresh_token"] = refresh
+        self.config_data["refresh_token_expires"] = expires
+        
+
+config = Config()
+
+def refreshToken():
+    url = 'https://nebula.starbreeze.com/iam/v3/oauth/token'
+    client_id = '0b3bfdf5a25f452fbd33a36133a2deab' + ':'
+    headers = {
+        'Authorization': f'Basic {base64.b64encode(client_id.encode()).decode()}',
+        'Content-Type': 'application/x-www-form-urlencoded'
+    }
+    data = {
+        'grant_type': 'refresh_token',
+        'refresh_token': config.refresh(),
+        'extend_exp': True
+    }
+
+    response = requests.post(url, headers=headers, data=data)
+    if response.status_code == 200:
+        response_json = response.json()
+        config.set_token(response_json["access_token"], time.time() + response_json["expires_in"])
+        config.set_refresh(response_json["refresh_token"], time.time() + response_json["refresh_expires_in"])
+        config.save()
+    
+
 already_sent_modworkshop_request = False #only send the modworkshop api request once, we dont want to spam it's servers
 cached_modworkshop_version = ""
 def getLatestMWSVersion():
@@ -49,7 +118,8 @@ class MoolahNetSocket():
           if not self.done_version_check and MOOLAHNET_MWS_ENABLED:
               mwsversion = getLatestMWSVersion()
               print(f"ModWorkshop Version: {str(mwsversion)}")
-              cppversion = self.getCPPModVersion()
+              #cppversion = self.getCPPModVersion()
+              cppversion = "0.4.1" # hacky fix since I cant update c++ side at the moment
               print(f"Game version: {str(cppversion)}")
               #if cppversion != mwsversion:
               if cppversion != mwsversion:
@@ -435,7 +505,17 @@ class ServerBrowser(QWidget):
         if response.status_code == 200:
             self.sessions = response.json()
         else:
-            QMessageBox.critical(self, "API Error", "Failed to fetch Nebula Sessions!", QMessageBox.Ok)
+            if config.token_expired():
+                refreshToken()
+                self.token = config.token()
+                headers["Authorization"] = f'Bearer ' + self.token
+                response = requests.post(url, headers=headers, json=data)
+                if response.status_code == 200:
+                    self.sessions = response.json()
+                else:
+                    QMessageBox.critical(self, "API Error", "Failed to fetch Nebula Sessions!", QMessageBox.Ok)
+            else:
+                QMessageBox.critical(self, "API Error", "Failed to fetch Nebula Sessions!", QMessageBox.Ok)
 
     def populateServerTree(self):
         self.server_tree.clear()
@@ -594,58 +674,12 @@ class ServerBrowser(QWidget):
         else:
             self.join_button.setEnabled(False)
 
-config_file_path = "./MoolahNet-Config.json"
-class Config():
-    def __init__(self):
-        self.load()
-
-    def save(self):
-        fp = open(config_file_path, 'w')
-        json.dump(self.config_data, fp)
-        fp.close()
-        pass
-    
-    def load(self):
-        if os.path.exists(config_file_path):
-            fp = open(config_file_path, 'r')
-            self.config_data = json.load(fp)
-            fp.close()
-        else:
-            self.config_data = {}
-            self.config_data["token"] = ""
-            self.config_data["token_expires"] = 0
-            self.config_data["refresh_token"] = ""
-            self.config_data["refresh_token_expires"] = 0
-            self.save()
-        pass
-    
-    def token(self):
-        return self.config_data["token"]
-    def refresh(self):
-        return self.config_data["refresh_token"]
-    def refresh_expires(self):
-        return self.config_data["refresh_token_expires"]
-    
-    def token_or_refresh_available(self):
-        return time.time() < self.config_data["token_expires"] or time.time() < self.refresh_expires()
-
-    def token_expired(self):
-        return time.time() > self.config_data["token_expires"]
-    
-    def set_token(self, token, expires):
-        self.config_data["token"] = token
-        self.config_data["token_expires"] = expires
-    def set_refresh(self, refresh, expires):
-        self.config_data["refresh_token"] = refresh
-        self.config_data["refresh_token_expires"] = expires
-        
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     qdarktheme.setup_theme()
     app.setWindowIcon(QIcon("./icon.png"))
-
-    config = Config()
+    
     config.load()
 
     moolahsocket = MoolahNetSocket()
@@ -662,26 +696,9 @@ if __name__ == '__main__':
             sys.exit(app.exec_())
         else:
             # use refresh to get a new token
-            url = 'https://nebula.starbreeze.com/iam/v3/oauth/token'
-            client_id = '0b3bfdf5a25f452fbd33a36133a2deab' + ':'
-            headers = {
-                'Authorization': f'Basic {base64.b64encode(client_id.encode()).decode()}',
-                'Content-Type': 'application/x-www-form-urlencoded'
-            }
-            data = {
-                'grant_type': 'refresh_token',
-                'refresh_token': config.refresh(),
-                'extend_exp': True
-            }
-        
-            response = requests.post(url, headers=headers, data=data)
-            if response.status_code == 200:
-                response_json = response.json()
-                config.set_token(response_json["access_token"], time.time() + response_json["expires_in"])
-                config.set_refresh(response_json["refresh_token"], time.time() + response_json["refresh_expires_in"])
-                config.save()
-                server_browser.showServerBrwoser(config.token())
-                sys.exit(app.exec_())
+            refreshToken()
+            server_browser.showServerBrwoser(config.token())
+            sys.exit(app.exec_())
     else:
         # login window
         login_window = LoginWindow()
