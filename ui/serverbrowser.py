@@ -101,6 +101,21 @@ def getLatestMWSVersion():
             already_sent_modworkshop_request = True
     return cached_modworkshop_version
     
+owned_dlc = {}
+owned_dlc["Syntax Error"] = False
+def getOwnedDLC(token):
+    syntax_ids = ["9b3e2be8772e4674bb85dc28f533924e", "31a224936c0846799ce55efaa3245d9d", "db780556b7c2474fbe790ebd0bf8cc61", "a6f6219f6ab04b3b9d90ae7c6778b379"]
+    for id in syntax_ids:
+        url = f"https://nebula.starbreeze.com/platform/public/namespaces/pd3/users/me/entitlements/ownership/any?itemIds={id}"
+        header = {
+            "Authorization": "Bearer " + token,
+            "Accept": "application/json"
+        }
+        req = requests.request("GET", url=url, headers=header)
+        if req.status_code == 200:
+            if json.loads(req.content.decode())["owned"]:
+                owned_dlc["Syntax Error"] = True
+                break
 
 class MoolahNetSocket():
     def __init__(self):
@@ -119,7 +134,7 @@ class MoolahNetSocket():
               mwsversion = getLatestMWSVersion()
               print(f"ModWorkshop Version: {str(mwsversion)}")
               #cppversion = self.getCPPModVersion()
-              cppversion = "0.4.1" # hacky fix since I cant update c++ side at the moment
+              cppversion = "0.4.2" # hacky fix since I cant update c++ side at the moment
               print(f"Game version: {str(cppversion)}")
               #if cppversion != mwsversion:
               if cppversion != mwsversion:
@@ -475,7 +490,16 @@ class ServerBrowser(QWidget):
         unique_maps = self.getUniqueMaps()
         existing_maps = [self.map_filter_dropdown.itemText(i) for i in range(self.map_filter_dropdown.count())]
         new_maps = set(unique_maps) - set(existing_maps)
-        self.map_filter_dropdown.addItems(new_maps)
+        new_maps = list(new_maps)
+        new_maps.sort()
+        for map in new_maps:
+            if map == "Syntax Error":
+                if owned_dlc["Syntax Error"]:
+                    self.map_filter_dropdown.addItem(map)
+                else:
+                    continue
+            else:
+                self.map_filter_dropdown.addItem(map)
 
         existing_regions = [checkbox.text() for checkbox in self.region_checkboxes]
         unique_regions = self.getUniqueRegions()
@@ -580,8 +604,9 @@ class ServerBrowser(QWidget):
                     continue
 
 
-                if "Syntax" in map_asset_names[0]:
-                    continue
+                if session_attributes.get("MapAssetTestName", session_attributes.get("MapAssetNameTest", session_attributes.get("MAPASSETNAMETEST")))[0] == "Syntax Error":
+                    if not owned_dlc["Syntax Error"]:
+                        continue
 
                 # Check all the filters and fill out the server tree data
                 session_region = self.region_code_to_name(session.get("DSInformation", {}).get("Server", {}).get("region"))
@@ -692,11 +717,13 @@ if __name__ == '__main__':
     if config.token_or_refresh_available():
         if not config.token_expired():
             # use token
+            getOwnedDLC(config.token())
             server_browser.showServerBrwoser(config.token())
             sys.exit(app.exec_())
         else:
             # use refresh to get a new token
             refreshToken()
+            getOwnedDLC(config.token())
             server_browser.showServerBrwoser(config.token())
             sys.exit(app.exec_())
     else:
@@ -708,6 +735,7 @@ if __name__ == '__main__':
             config.set_refresh(login_window.refresh_token, login_window.refresh_expires)
             if login_window.save_token_to_config:
                 config.save()
+            getOwnedDLC(login_window.token)
             server_browser.showServerBrwoser(login_window.token)
         login_window.loginSuccessful.connect(logged_in)
         sys.exit(app.exec_())
