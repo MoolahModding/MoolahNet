@@ -133,8 +133,8 @@ class MoolahNetSocket():
           if not self.done_version_check and MOOLAHNET_MWS_ENABLED:
               mwsversion = getLatestMWSVersion()
               print(f"ModWorkshop Version: {str(mwsversion)}")
-              #cppversion = self.getCPPModVersion()
-              cppversion = "0.4.2" # hacky fix since I cant update c++ side at the moment
+              cppversion = self.getCPPModVersion()
+              #cppversion = "0.4.2" # hacky fix since I cant update c++ side at the moment
               print(f"Game version: {str(cppversion)}")
               #if cppversion != mwsversion:
               if cppversion != mwsversion:

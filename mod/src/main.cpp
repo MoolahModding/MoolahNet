@@ -1,4 +1,11 @@
 #define WIN32_LEAN_AND_MEAN
+#define NOMINMAX
+#include <windows.h>
+#ifdef TEXT
+#undef TEXT
+#endif
+
+
 #include <Mod/CppUserModBase.hpp>
 #include <Unreal/FString.hpp>
 #include <Unreal/UClass.hpp>
@@ -22,7 +29,7 @@
 #define NEW_PD3
 
 //#define MOOLAHNET_DEVELOPMENT
-const char* MOOLAHNET_VERSION = "0.4";
+const char* MOOLAHNET_VERSION = "0.4.2";
 #define MOOLAHNET_SERVER_PORT 20250
 
 #include <MinHook.h>
@@ -155,7 +162,8 @@ using FName = RC::Unreal::FName;
 //const char* FUniqueNetIdAccelbyteResource__ctor_Shipping_mask = "xxxx?xxxx?xxxx?xxxxxxxxx????xx????xxxx?x????xxx?xxxxxxxxx?xxxxx?xxx?xxx????xxxxxxxx?x????xxxxx?xxx????xxxx?xxxxxxxx?xxxx?xxxx?xxx?xxxxxxxxxxxxxxxxx";
 
 // Known to change
-/*const char* USBZLobby__JoinSessionById_Shipping_pattern = "\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x56\x48\x81\xEC\x00\x00\x00\x00\x4D\x8B\xF0\x48\x8B\xEA\x48\x8B\xF9\xE8\x00\x00\x00\x00\x48\x8B\x4F\x00\x48\x8D\x94\x24\x00\x00\x00\x00\x48\x8B\x01\xFF\x90\x00\x00\x00\x00\x48\x8B\xF0\x48\x83\x38\x00\x74\x00\xE8\x00\x00\x00\x00\x48\x85\xC0\x74\x00\x48\x8B\x36\x48\x8D\x50\x00\x48\x63\x40\x00\x3B\x46\x00\x7F\x00\x48\x8B\xC8\x48\x8B\x46\x00\x48\x39\x14\xC8\x74\x00\x33\xF6\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x4C\x8B\x07\x48\x8B\xCF\x48\x8B\xD8\x41\xFF\x90\x00\x00\x00\x00\x45\x33\xC9\x48\x89\x5C\x24\x00\x48\x8B\xC8\x45\x33\xC0\x48\x8B\xD6\xE8\x00\x00\x00\x00\x48\x89\x87\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\x48\x8B\xD5\x48\x8B\xC8\xE8\x00\x00\x00\x00\x48\x8B\x4F\x00\x48\x8D\x54\x24\x00\x48\x8B\x89\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8B\x08\x48\x89\x4C\x24\x00\x48\x8B\x48\x00\x48\x89\x4C\x24\x00\x48\x85\xC9\x74\x00\xFF\x41\x00\x48\x8B\x5C\x24\x00\x48\x8D\x35\x00\x00\x00\x00\x48\x89\x74\x24\x00\x48\xC7\x44\x24\x00\x00\x00\x00\x00\x48\xC7\x44\x24\x00\x00\x00\x00\x00\x48\x85\xDB\x74\x00\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\x48\x8B\xCB\xFF\x10\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\xBA\x00\x00\x00\x00\x48\x8B\xCB\xFF\x50\x00\x48\x8B\x8F\x00\x00\x00\x00\x48\x8D\x54\x24\x00\x4D\x8B\xC6\x48\x8B\x01\xFF\x90\x00\x00\x00\x00\x48\x8B\x4C\x24\x00\x48\x89\x74\x24\x00\x48\x85\xC9\x74\x00\xE8\x00\x00\x00\x00\x48\x8B\x5C\x24\x00\x48\x85\xDB\x74\x00\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\x48\x8B\xCB\xFF\x10\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\xBA\x00\x00\x00\x00\x48\x8B\xCB\xFF\x50\x00\x48\x8B\x87";
+/*
+const char* USBZLobby__JoinSessionById_Shipping_pattern = "\x48\x89\x5C\x24\x00\x48\x89\x6C\x24\x00\x56\x57\x41\x56\x48\x81\xEC\x00\x00\x00\x00\x4D\x8B\xF0\x48\x8B\xEA\x48\x8B\xF9\xE8\x00\x00\x00\x00\x48\x8B\x4F\x00\x48\x8D\x94\x24\x00\x00\x00\x00\x48\x8B\x01\xFF\x90\x00\x00\x00\x00\x48\x8B\xF0\x48\x83\x38\x00\x74\x00\xE8\x00\x00\x00\x00\x48\x85\xC0\x74\x00\x48\x8B\x36\x48\x8D\x50\x00\x48\x63\x40\x00\x3B\x46\x00\x7F\x00\x48\x8B\xC8\x48\x8B\x46\x00\x48\x39\x14\xC8\x74\x00\x33\xF6\x48\x8D\x4C\x24\x00\xE8\x00\x00\x00\x00\x4C\x8B\x07\x48\x8B\xCF\x48\x8B\xD8\x41\xFF\x90\x00\x00\x00\x00\x45\x33\xC9\x48\x89\x5C\x24\x00\x48\x8B\xC8\x45\x33\xC0\x48\x8B\xD6\xE8\x00\x00\x00\x00\x48\x89\x87\x00\x00\x00\x00\x48\x85\xC0\x0F\x84\x00\x00\x00\x00\x48\x8B\xD5\x48\x8B\xC8\xE8\x00\x00\x00\x00\x48\x8B\x4F\x00\x48\x8D\x54\x24\x00\x48\x8B\x89\x00\x00\x00\x00\xE8\x00\x00\x00\x00\x48\x8B\x08\x48\x89\x4C\x24\x00\x48\x8B\x48\x00\x48\x89\x4C\x24\x00\x48\x85\xC9\x74\x00\xFF\x41\x00\x48\x8B\x5C\x24\x00\x48\x8D\x35\x00\x00\x00\x00\x48\x89\x74\x24\x00\x48\xC7\x44\x24\x00\x00\x00\x00\x00\x48\xC7\x44\x24\x00\x00\x00\x00\x00\x48\x85\xDB\x74\x00\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\x48\x8B\xCB\xFF\x10\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\xBA\x00\x00\x00\x00\x48\x8B\xCB\xFF\x50\x00\x48\x8B\x8F\x00\x00\x00\x00\x48\x8D\x54\x24\x00\x4D\x8B\xC6\x48\x8B\x01\xFF\x90\x00\x00\x00\x00\x48\x8B\x4C\x24\x00\x48\x89\x74\x24\x00\x48\x85\xC9\x74\x00\xE8\x00\x00\x00\x00\x48\x8B\x5C\x24\x00\x48\x85\xDB\x74\x00\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\x48\x8B\xCB\xFF\x10\x83\x6B\x00\x00\x75\x00\x48\x8B\x03\xBA\x00\x00\x00\x00\x48\x8B\xCB\xFF\x50\x00\x48\x8B\x87";
 const char* USBZLobby__JoinSessionById_Shipping_mask = "xxxx?xxxx?xxxxxxx????xxxxxxxxxx????xxx?xxxx????xxxxx????xxxxxx?x?x????xxxx?xxxxxx?xxx?xx?x?xxxxxx?xxxxx?xxxxxx?x????xxxxxxxxxxxx????xxxxxxx?xxxxxxxxxx????xxx????xxxxx????xxxxxxx????xxx?xxxx?xxx????x????xxxxxxx?xxx?xxxx?xxxx?xx?xxxx?xxx????xxxx?xxxx?????xxxx?????xxxx?xx??x?xxxxxxxxxx??x?xxxx????xxxxx?xxx????xxxx?xxxxxxxx????xxxx?xxxx?xxxx?x????xxxx?xxxx?xx??x?xxxxxxxxxx??x?xxxx????xxxxx?xxx";
 
 const char* USBZPartyClient__ConnectToLobby_Implementation_Shipping_pattern = "\x40\x56\x48\x83\xEC\x00\x83\x7A\x00\x00\x48\x8B\xF1\x0F\x8E\x00\x00\x00\x00\x48\x89\x5C\x24\x00\x48\x81\xC1\x00\x00\x00\x00\x48\x89\x6C\x24\x00\x48\x89\x7C\x24\x00\xE8\x00\x00\x00\x00\x48\x8B\xCE";
@@ -458,12 +466,75 @@ std::string FString_to_std_string(FString str) {
 std::string wstr_to_string(std::wstring wstr) {
   return converter.to_bytes(wstr);
 }
+std::wstring string_to_wstr(std::string str) {
+  return converter.from_bytes(str);
+}
 FString wstr_to_fstring(const std::wstring& wide) {
   return FString(wide.c_str());
 }
 FString str_to_fstring(const std::string& str) {
   return wstr_to_fstring(converter.from_bytes(str));
 }
+#pragma endregion
+
+#pragma region Thread Descriptions
+std::string MN_GetThreadDescription(HANDLE thread) {
+  wchar_t* result;
+  GetThreadDescription(thread, &result);
+  return converter.to_bytes(result);
+}
+std::string MN_GetCurrentThreadDescription() {
+  return MN_GetThreadDescription(GetCurrentThread());
+}
+#pragma endregion
+
+#pragma region PD3 Window Handle
+
+HWND G_PD3WindowHandle = nullptr;
+BOOL CALLBACK EnumWindowsCB(HWND handle, LPARAM param) {
+  char* title = new char[512];
+  GetWindowTextA(handle, title, 512);
+
+  if (std::string(title).find("PAYDAY3", 0) != std::string::npos) {
+    G_PD3WindowHandle = handle;
+    delete title;
+    return TRUE;
+  }
+  delete title;
+  return FALSE;
+}
+HWND GetPAYDAY3Window() {
+  if (G_PD3WindowHandle != nullptr) {
+    return G_PD3WindowHandle;
+  }
+  EnumWindows(EnumWindowsCB, NULL);
+  return G_PD3WindowHandle;
+}
+
+#pragma endregion
+
+#pragma region MoolahNet Error Handling
+
+namespace ErrorHandling {
+  void Error(std::string description, std::string FILE, int LINE) {
+    std::stringstream error_title_stream;
+    error_title_stream << "MoolahNet v" << MOOLAHNET_VERSION << " - Fatal Error";
+
+    std::stringstream description_builder;
+    description_builder << description;
+    description_builder << " " << FILE << ":" << LINE;
+
+    std::cout << description_builder.str() << std::endl;
+    MessageBoxA(GetPAYDAY3Window(), description_builder.str().c_str(), error_title_stream.str().c_str(), MB_OK | MB_ICONERROR);
+  }
+}
+
+#define MOOLAHNET_ERROR(description) \
+std::stringstream errordescription; \
+errordescription << description; \
+errordescription << " Error occurred in thread " << MN_GetCurrentThreadDescription(); \
+ErrorHandling::Error(errordescription.str(), __FILE__, __LINE__);
+
 #pragma endregion
 
 
@@ -605,11 +676,11 @@ void socket_message(const std::string& data) {
   //FString unreal_string = FString((RC::Unreal::TCHAR*)converter.from_bytes(data).c_str());
 
   if (USBZMatchmaking__SetArmadaInfo == NULL) {
-    MessageBoxA(GetActiveWindow(), "USBZMatchmaking::SetArmadaInfo is null, contact the mod author.", "MoolahNet - Fatal Error", NULL);
+    MOOLAHNET_ERROR("USBZMatchmaking::SetArmadaInfo is null, contact the mod author.");
     return;
   }
   if (USBZStateMachine__SetState == NULL) {
-    MessageBoxA(GetActiveWindow(), "USBZStateMachine::SetState is null, contact the mod author.", "MoolahNet - Fatal Error", NULL);
+    MOOLAHNET_ERROR("USBZStateMachine::SetState is null, contact the mod author.");
     return;
   }
 
@@ -758,6 +829,37 @@ static const wchar_t* GetMoolahNetVersionUE4SS() {
   return ret.c_str();
 }
 
+namespace ScannerHelper {
+  struct ScannerResult {
+  public:
+    bool found;
+    bool finished;
+  };
+  std::unordered_map<std::string, ScannerResult> finished_sigs;
+  struct ScannerInfo {
+  public:
+    std::string modulename;
+    const char* pattern;
+    const char* mask;
+
+    std::string funcname;
+
+    unsigned long long* destination;
+  };
+  DWORD ScannerThread(LPVOID info_) {
+    ScannerInfo info{ *((ScannerInfo*)info_) };
+    
+    SetThreadDescription(GetCurrentThread(), string_to_wstr(std::string("MoolahNet-Signature-Scanner-") + info.funcname).c_str());
+
+    (*info.destination) = FindPattern(info.modulename, info.funcname.c_str(), info.pattern, info.mask);
+
+    finished_sigs[info.funcname].found = *(info.destination) != 0;
+    finished_sigs[info.funcname].finished = true;
+
+    return TRUE;
+  }
+}
+
 class MoolahNetMod : public RC::CppUserModBase {
 public:
 #ifdef MOOLAHNET_DEVELOPMENT
@@ -808,6 +910,7 @@ public:
       Executable = "PAYDAY3Client-Win64-Shipping.exe";
 #endif
 
+      /*
       USBZStateMachine__SetState = (USBZStateMachine__SetState_t)FindPattern(Executable, "USBZStateMachine__SetState",
         USBZStateMachine__SetState_Shipping_pattern,
         USBZStateMachine__SetState_Shipping_mask);
@@ -818,7 +921,7 @@ public:
 
       USBZAnalyicsManager__SendLobbyJoined = (USBZAnalyticsManager__SendLobbyJoined_t)FindPattern(Executable, "USBZAnalyicsManager__SendLobbyJoined",
         USBZAnalyticsManager__SendLobbyJoined_Shipping_pattern,
-        USBZAnalyticsManager__SendLobbyJoined_Shipping_mask);
+        USBZAnalyticsManager__SendLobbyJoined_Shipping_mask);*/
 
       /*USBZPartyManagerABV2__JoinParty = (USBZPartyManagerABV2__JoinParty_t)FindPattern((char*)"PAYDAY3Client-Win64-Shipping.exe", "USBZPartyManagerABV2__JoinParty",
         USBZPartyManagerABV2__JoinParty_Shipping_pattern,
@@ -843,8 +946,48 @@ public:
       sstream2 << FUniqueNetIdAccelbyteResource__ctor;
       MessageBox(NULL, converter.from_bytes(sstream2.str()).c_str(), STR("FUniqueNetIdAccelbyteResource"), NULL);*/
 
+
+#define CREATE_SCANNER_THREAD(funcname_, destvar, pattern_, mask_) \
+{ \
+    ScannerHelper::ScannerInfo info{}; \
+    info.modulename = Executable.c_str(); \
+    info.pattern = pattern_; \
+    info.mask = mask_; \
+    info.funcname = funcname_; \
+    info.destination = (unsigned long long*)&destvar; \
+\
+    ScannerHelper::ScannerResult result{}; \
+    result.found = false; \
+    result.finished = false; \
+    ScannerHelper::finished_sigs[funcname_] = result;\
+    CreateThread(NULL, NULL, ScannerHelper::ScannerThread, &info, NULL, NULL); \
+}
+
+
+      CREATE_SCANNER_THREAD("USBZStateMachine::SetState", USBZStateMachine__SetState, USBZStateMachine__SetState_Shipping_pattern, USBZStateMachine__SetState_Shipping_mask);
+      CREATE_SCANNER_THREAD("USBZMatchmaking::SetArmadaInfo", USBZMatchmaking__SetArmadaInfo, USBZMatchmaking__SetArmadaInfo_Shipping_pattern, USBZMatchmaking__SetArmadaInfo_Shipping_mask);
+      CREATE_SCANNER_THREAD("USBZAnalyticsManager::SendLobbyJoined", USBZAnalyicsManager__SendLobbyJoined, USBZAnalyticsManager__SendLobbyJoined_Shipping_pattern, USBZAnalyticsManager__SendLobbyJoined_Shipping_mask);
+
+#undef CREATE_SCANNER_THREAD
+      
+      while (true) {
+        bool finished = true;
+
+        for (std::pair<std::string, ScannerHelper::ScannerResult> result : ScannerHelper::finished_sigs) {
+          if (result.second.finished != false) {
+            finished = true;
+          }
+          else {
+            finished = false;
+            break;
+          }
+        }
+
+        if (finished) break;
+      }
+
       if (USBZStateMachine__SetState == NULL) {
-        MessageBoxA(GetActiveWindow(), "USBZStateMachine::SetState is null, contact the mod author.", "MoolahNet - Fatal Error", NULL);
+        MOOLAHNET_ERROR("USBZStateMachine::SetState is null, contact the mod author.");
         return (DWORD)TRUE;
       }
 
