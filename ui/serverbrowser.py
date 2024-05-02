@@ -406,7 +406,10 @@ class ServerBrowser(QWidget):
     }
 
     def map_index_to_difficulty(self, idx):
-        return self.difficulty_map.get(int(idx), "Unknown")
+        try:
+            return self.difficulty_map.get(int(idx), "Unknown")
+        except:
+            return self.difficulty_map.get(int(idx[0]), "Unknown")
 
     # Define a map for the region name resolution
     region_map = {
@@ -561,6 +564,8 @@ class ServerBrowser(QWidget):
 
         player_breakdown["ERRORPLATFORM"] = 0
 
+        open("sessions.json", 'w').write(json.dumps(self.sessions["data"]))
+
         # For each session that the API returns
         for session in self.sessions["data"]:
             session_attributes = session["attributes"]
@@ -654,7 +659,7 @@ class ServerBrowser(QWidget):
                 self.connectToGameServer()
 
             if self.game_socket.connected():
-                print(f"Joining server {server_id}")
+                #print(f"Joining server {server_id}")
                 try:
                     self.game_socket.send(server_id.encode())
                 except: # Socket has disconnected
@@ -669,7 +674,7 @@ class ServerBrowser(QWidget):
             self.connectToGameServer()
 
         if self.game_socket.connected():
-            print(f"Joining server {session}")
+            #print(f"Joining server {session}")
             try:
                 self.game_socket.send(session.encode())
             except: # Socket has disconnected

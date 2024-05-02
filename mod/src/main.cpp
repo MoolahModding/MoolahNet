@@ -29,8 +29,10 @@
 #define NEW_PD3
 
 //#define MOOLAHNET_DEVELOPMENT
-const char* MOOLAHNET_VERSION = "0.4.2";
+const char* MOOLAHNET_VERSION = "0.5";
 #define MOOLAHNET_SERVER_PORT 20250
+
+#define PAYDAY3_UPDATE_01_01_03
 
 #include <MinHook.h>
 #ifdef MOOLAHNET_DEVELOPMENT
@@ -450,7 +452,7 @@ public:
 typedef void(__fastcall* USBZMatchmaking__SetArmadaInfo_t)(USBZMatchmaking* _this, FSBZArmadaInfo* armadainfo);
 USBZMatchmaking__SetArmadaInfo_t USBZMatchmaking__SetArmadaInfo;
 
-typedef void(__fastcall* USBZStateMachine__SetState_t)(USBZStateMachine* _this, FName* StateName, USBZStateMachineData* InData);
+typedef void(__fastcall* USBZStateMachine__SetState_t)(USBZStateMachine* _this, FName StateName, USBZStateMachineData* InData);
 USBZStateMachine__SetState_t USBZStateMachine__SetState;
 
 
@@ -516,13 +518,13 @@ HWND GetPAYDAY3Window() {
 #pragma region MoolahNet Error Handling
 
 namespace ErrorHandling {
-  void Error(std::string description, std::string FILE, int LINE) {
+  void Error(std::string description, std::string FILE, int LINE, std::string FUNC) {
     std::stringstream error_title_stream;
     error_title_stream << "MoolahNet v" << MOOLAHNET_VERSION << " - Fatal Error";
 
     std::stringstream description_builder;
     description_builder << description;
-    description_builder << " " << FILE << ":" << LINE;
+    description_builder << " " << FILE << ":" << LINE << " (" << FUNC << ")";
 
     std::cout << description_builder.str() << std::endl;
     MessageBoxA(GetPAYDAY3Window(), description_builder.str().c_str(), error_title_stream.str().c_str(), MB_OK | MB_ICONERROR);
@@ -533,7 +535,7 @@ namespace ErrorHandling {
 std::stringstream errordescription; \
 errordescription << description; \
 errordescription << " Error occurred in thread " << MN_GetCurrentThreadDescription(); \
-ErrorHandling::Error(errordescription.str(), __FILE__, __LINE__);
+ErrorHandling::Error(errordescription.str(), __FILE__, __LINE__, __func__);
 
 #pragma endregion
 
@@ -647,9 +649,9 @@ void __fastcall USBZMatchmaking__SetArmadaInfo_h(USBZMatchmaking* _this, FSBZArm
 
 std::wstring G_CurrentGameState;
 USBZStateMachine__SetState_t USBZStateMachine__SetState_o;
-void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName* StateName, USBZStateMachineData* InData) {
-#ifdef MOOLAHNET_DEVEOPMENT
-  std::cout << "USBZStateMachine is changing states to state: " << *StateName << std::endl;
+void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName StateName, USBZStateMachineData* InData) {
+  std::cout << "USBZStateMachine is changing states to state: " << StateName << std::endl;
+#ifdef MOOLAHNET_DEVELOPMENT
 
   if (*StateName == FName(STR("ABMatchmaking"))) {
     std::cout << *((USBZStateMachineDataMatchmaking*)InData) << std::endl;
@@ -661,7 +663,8 @@ void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName* Sta
     stream.close();
   }
 #endif
-  G_CurrentGameState = StateName->ToString();
+  //G_CurrentGameState = StateName->ToString();
+  G_CurrentGameState = StateName.ToString();
   USBZStateMachine__SetState_o(_this, StateName, InData);
 }
 
@@ -679,8 +682,8 @@ void socket_message(const std::string& data) {
     MOOLAHNET_ERROR("USBZMatchmaking::SetArmadaInfo is null, contact the mod author.");
     return;
   }
-  if (USBZStateMachine__SetState == NULL) {
-    MOOLAHNET_ERROR("USBZStateMachine::SetState is null, contact the mod author.");
+  if (USBZStateMachine__SetState_o == NULL) {
+    MOOLAHNET_ERROR("USBZStateMachine::SetState_o is null, contact the mod author.");
     return;
   }
 
@@ -773,11 +776,39 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
   //std::string MatchmakingCommand_String = attributes["Command"]; // "ESBZMatchmakingCommand::RegularMatchmaking"
 
   std::string DifficultyIdx_String = "";
+#ifndef PAYDAY3_UPDATE_01_01_03
   if (attributes.contains("DifficultyIdx")) {
     DifficultyIdx_String = attributes["DifficultyIdx"];
   }
   else {
     DifficultyIdx_String = attributes["DIFFICULTYIDX"]; // "3" - OVK
+  }
+#else
+  if (attributes.contains("DifficultyIdx")) {
+    if (attributes["DifficultyIdx"].is_array()) {
+      DifficultyIdx_String = attributes["DifficultyIdx"][0];
+    }
+    else {
+      DifficultyIdx_String = attributes["DifficultyIdx"];
+    }
+  }
+  else {
+    if (attributes["DIFFICULTYIDX"].is_array()) {
+      DifficultyIdx_String = attributes["DIFFICULTYIDX"][0]; // "3" - OVK
+    }
+    else {
+      DifficultyIdx_String = attributes["DIFFICULTYIDX"]; // "3" - OVK
+    }
+  }
+#endif
+
+  std::string mapAssetNameTest = "";
+
+  if (attributes.contains("MAPASSETNAMETEST")) {
+    mapAssetNameTest = attributes["MAPASSETNAMETEST"][0];
+  }
+  else {
+    mapAssetNameTest = attributes["MapAssetNameTest"][0];
   }
 
   //std::string MMGroup_String = attributes["MMGroup"]; // "-1"
@@ -793,7 +824,7 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
   new (in_data) USBZStateMachineDataMatchmaking(
     FSBZOnlineMatchmakingParams(
       false, // QuickMatch
-      InternalHeistNameToLevelIdx(session["configuration"]["attributes"]["MapAssetNameTest"][0]), // could change, older versions of game session info used to contain the LevelIdx
+      InternalHeistNameToLevelIdx(mapAssetNameTest), // could change, older versions of game session info used to contain the LevelIdx
       std::stoi(DifficultyIdx_String), // DifficultyIdx
       {},// { ESBZSecurityCompany::None }, // SecurityCompanies // RC::Unreal::TArray<ESBZSecurityCompany>()
       0, // MatchmakingRandomSeed
@@ -810,8 +841,10 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
   //in_data.ServerInfo = TOptional<FSBZArmadaInfo>(armada_info);
 
   FreezeLobbyJoinedAnalytics = true;
+  G_CurrentGameState = next_state.ToString();
   USBZStateMachine__SetState_o
-    (statemachine, &next_state, in_data);
+    (statemachine, next_state, in_data);
+  FreezeLobbyJoinedAnalytics = false;
   return;
 }
 
@@ -850,6 +883,8 @@ namespace ScannerHelper {
     ScannerInfo info{ *((ScannerInfo*)info_) };
     
     SetThreadDescription(GetCurrentThread(), string_to_wstr(std::string("MoolahNet-Signature-Scanner-") + info.funcname).c_str());
+
+    std::cout << "Started scanning for function " << info.funcname.c_str() << std::endl;
 
     (*info.destination) = FindPattern(info.modulename, info.funcname.c_str(), info.pattern, info.mask);
 
@@ -948,21 +983,22 @@ public:
 
 
 #define CREATE_SCANNER_THREAD(funcname_, destvar, pattern_, mask_) \
-{ \
-    ScannerHelper::ScannerInfo info{}; \
-    info.modulename = Executable.c_str(); \
-    info.pattern = pattern_; \
-    info.mask = mask_; \
-    info.funcname = funcname_; \
-    info.destination = (unsigned long long*)&destvar; \
+    ScannerHelper::ScannerInfo* ScannerInfo##destvar##_info = new ScannerHelper::ScannerInfo(); \
+    ScannerInfo##destvar##_info->modulename = Executable.c_str(); \
+    ScannerInfo##destvar##_info->pattern = pattern_; \
+    ScannerInfo##destvar##_info->mask = mask_; \
+    ScannerInfo##destvar##_info->funcname = funcname_; \
+    ScannerInfo##destvar##_info->destination = (unsigned long long*)&destvar; \
 \
+{ \
     ScannerHelper::ScannerResult result{}; \
     result.found = false; \
     result.finished = false; \
     ScannerHelper::finished_sigs[funcname_] = result;\
-    CreateThread(NULL, NULL, ScannerHelper::ScannerThread, &info, NULL, NULL); \
-}
+} \
+    CreateThread(NULL, NULL, ScannerHelper::ScannerThread, ScannerInfo##destvar##_info, NULL, NULL);
 
+      clock_t start_time = clock();
 
       CREATE_SCANNER_THREAD("USBZStateMachine::SetState", USBZStateMachine__SetState, USBZStateMachine__SetState_Shipping_pattern, USBZStateMachine__SetState_Shipping_mask);
       CREATE_SCANNER_THREAD("USBZMatchmaking::SetArmadaInfo", USBZMatchmaking__SetArmadaInfo, USBZMatchmaking__SetArmadaInfo_Shipping_pattern, USBZMatchmaking__SetArmadaInfo_Shipping_mask);
@@ -985,6 +1021,14 @@ public:
 
         if (finished) break;
       }
+
+#define CLEANUP_SCANNER_THREAD(destvar) delete ScannerInfo##destvar##_info;
+      CLEANUP_SCANNER_THREAD(USBZStateMachine__SetState)
+      CLEANUP_SCANNER_THREAD(USBZMatchmaking__SetArmadaInfo)
+      CLEANUP_SCANNER_THREAD(USBZAnalyicsManager__SendLobbyJoined)
+#undef CLEANUP_SCANNER_THREAD
+
+      std::cout << "Found all " << ScannerHelper::finished_sigs.size() << " signatures in " << (float(clock() - start_time) / CLOCKS_PER_SEC) << " seconds" << std::endl;
 
       if (USBZStateMachine__SetState == NULL) {
         MOOLAHNET_ERROR("USBZStateMachine::SetState is null, contact the mod author.");

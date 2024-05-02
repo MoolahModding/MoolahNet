@@ -13,5 +13,7 @@ ui/MoolahNet-Config.json
 ui/build
 ui/dist
 ui/serverbrowser.spec
+ui/deadsessions.json
 
 server.json
+ui/sessions.json
