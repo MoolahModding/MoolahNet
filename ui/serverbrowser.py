@@ -103,19 +103,25 @@ def getLatestMWSVersion():
     
 owned_dlc = {}
 owned_dlc["Syntax Error"] = False
+owned_dlc["Boys in Blue"] = False
+
+dlc_ids = {}
+dlc_ids["Syntax Error"] = ["9b3e2be8772e4674bb85dc28f533924e", "31a224936c0846799ce55efaa3245d9d", "db780556b7c2474fbe790ebd0bf8cc61", "a6f6219f6ab04b3b9d90ae7c6778b379"]
+dlc_ids["Boys in Blue"] = ["f26d7322b3b94f8d9e42624397c2d9cc", "3d9b22d25d4d40af927169b92bf8e599", "ebecba276c3342b481c434da16d69a5f", "acc876daeade417e8cc0219914664fa6"]
 def getOwnedDLC(token):
-    syntax_ids = ["9b3e2be8772e4674bb85dc28f533924e", "31a224936c0846799ce55efaa3245d9d", "db780556b7c2474fbe790ebd0bf8cc61", "a6f6219f6ab04b3b9d90ae7c6778b379"]
-    for id in syntax_ids:
-        url = f"https://nebula.starbreeze.com/platform/public/namespaces/pd3/users/me/entitlements/ownership/any?itemIds={id}"
-        header = {
-            "Authorization": "Bearer " + token,
-            "Accept": "application/json"
-        }
-        req = requests.request("GET", url=url, headers=header)
-        if req.status_code == 200:
-            if json.loads(req.content.decode())["owned"]:
-                owned_dlc["Syntax Error"] = True
-                break
+    for dlc_name in dlc_ids:
+        for id in dlc_ids[dlc_name]:
+            url = f"https://nebula.starbreeze.com/platform/public/namespaces/pd3/users/me/entitlements/ownership/any?itemIds={id}"
+            header = {
+                "Authorization": "Bearer " + token,
+                "Accept": "application/json"
+            }
+            req = requests.request("GET", url=url, headers=header)
+            if req.status_code == 200:
+                if json.loads(req.content.decode())["owned"]:
+                    print("Owns " + dlc_name)
+                    owned_dlc[dlc_name] = True
+                    break
 
 class MoolahNetSocket():
     def __init__(self):
@@ -391,7 +397,8 @@ class ServerBrowser(QWidget):
         "Penthouse": "Touch the Sky",
         "Villa": "Cook Off",
         "Station": "Turbid Station",
-        "DataCenter": "Syntax Error"
+        "DataCenter": "Syntax Error",
+        "Fort": "Boys in Blue"
     }
 
     def map_level_to_name(self, internal_name):
@@ -501,6 +508,11 @@ class ServerBrowser(QWidget):
                     self.map_filter_dropdown.addItem(map)
                 else:
                     continue
+            if map == "Boys in Blue":
+                if owned_dlc["Boys in Blue"]:
+                    self.map_filter_dropdown.addItem(map)
+                else:
+                    continue
             else:
                 self.map_filter_dropdown.addItem(map)
 
@@ -543,6 +555,21 @@ class ServerBrowser(QWidget):
                     QMessageBox.critical(self, "API Error", "Failed to fetch Nebula Sessions!", QMessageBox.Ok)
             else:
                 QMessageBox.critical(self, "API Error", "Failed to fetch Nebula Sessions!", QMessageBox.Ok)
+
+    def sessionObjectToCModString(self, session):
+        mod_json = {}
+        mod_json["ip"] = session["attributes"]["SERVERIP"]
+        mod_json["gameport"] = int(session["attributes"]["GAMEPORT"])
+        mod_json["beaconport"] = int(session["attributes"]["BEACONPORT"])
+
+        mod_json["matchid"] = session["id"] # probably
+
+        mod_json["serverversion"] = session["attributes"]["GAMEVERSION"]
+        mod_json["region"] = ""
+        mod_json["difficultyidx"] = int(session["attributes"]["DifficultyIdx"][0])
+        mod_json["mapassetname"] = session["attributes"]["MapAssetNameTest"][0]
+        mod_json["gamesessioncode"] = session["code"]
+        return json.dumps(mod_json)
 
     def populateServerTree(self):
         self.server_tree.clear()
@@ -605,39 +632,44 @@ class ServerBrowser(QWidget):
                     continue
                 
                 # Hide all game sessions that don't have a dedicated server
-                if session.get("DSInformation", {}).get("StatusV2", "") != "AVAILABLE":
-                    continue
+                #if session.get("DSInformation", {}).get("StatusV2", "") != "AVAILABLE":
+                #    continue
 
 
-                if session_attributes.get("MapAssetTestName", session_attributes.get("MapAssetNameTest", session_attributes.get("MAPASSETNAMETEST")))[0] == "Syntax Error":
+                if session_attributes.get("MapAssetTestName", session_attributes.get("MapAssetNameTest", session_attributes.get("MAPASSETNAMETEST")))[0] == "Syntax Error" or session_attributes.get("MapAssetTestName", session_attributes.get("MapAssetNameTest", session_attributes.get("MAPASSETNAMETEST")))[0] == "Boys in Blue":
                     if not owned_dlc["Syntax Error"]:
+                        continue
+                    if not owned_dlc["Boys in Blue"]:
                         continue
 
                 # Check all the filters and fill out the server tree data
                 session_region = self.region_code_to_name(session.get("DSInformation", {}).get("Server", {}).get("region"))
                 if not selected_regions or session_region in selected_regions:
                     if selected_platform == "ALL PLATFORMS" or selected_platform in platforms:
-                        server_item = QTreeWidgetItem(self.server_tree)
-                        server_item.setText(0, map_asset_names[0])
+                        try:
+                            server_item = QTreeWidgetItem(self.server_tree)
+                            server_item.setText(0, map_asset_names[0])
 
-                        server_item.setText(1, self.map_index_to_difficulty(session_attributes.get("DifficultyIdx", session_attributes.get("DIFFICULTYIDX", 99))))
-                        server_item.setText(2, f"{player_count}/4 players")
-                        server_item.setText(3, session_region)
-                        server_item.setText(4, str(is_cross_platform))
-                        if player_count > 0:
-                            active_sessions += 1
-                            total_players += player_count
-                        #server_item.setText(self.id_column_index, session.get('id', 'Unknown ID'))
-                        server_item.setText(self.id_column_index, json.dumps(session))
+                            server_item.setText(1, self.map_index_to_difficulty(session_attributes.get("DifficultyIdx", session_attributes.get("DIFFICULTYIDX", 99))))
+                            server_item.setText(2, f"{player_count}/4 players")
+                            server_item.setText(3, session_region)
+                            server_item.setText(4, str(is_cross_platform))
+                            if player_count > 0:
+                                active_sessions += 1
+                                total_players += player_count
+                            #server_item.setText(self.id_column_index, session.get('id', 'Unknown ID'))
+                            server_item.setText(self.id_column_index, self.sessionObjectToCModString(session))
 
-                        for player_info in player_platforms:
-                            member_item = QTreeWidgetItem(server_item)
-                            member_item.setText(0, player_info[0])
-                            member_item.setText(self.id_column_index, player_info[1])
- 
-                        # If servers are empty (will be closed) or full (API should not report these but you never know)
-                        if only_joinable and (player_count == 0 or player_count == 4):
-                            self.server_tree.invisibleRootItem().removeChild(server_item)
+                            for player_info in player_platforms:
+                                member_item = QTreeWidgetItem(server_item)
+                                member_item.setText(0, player_info[0])
+                                member_item.setText(self.id_column_index, player_info[1])
+
+                            # If servers are empty (will be closed) or full (API should not report these but you never know)
+                            if only_joinable and (player_count == 0 or player_count == 4):
+                                self.server_tree.invisibleRootItem().removeChild(server_item)
+                        except:
+                            pass
         
         #self.server_count.setText(f"Found {self.server_tree.invisibleRootItem().childCount()} sessions")
         self.groupbox.setTitle(f"Server Browser - {self.server_tree.invisibleRootItem().childCount()} sessions")
@@ -707,7 +739,7 @@ class ServerBrowser(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    qdarktheme.setup_theme()
+    app.setStyleSheet(qdarktheme.load_stylesheet())
     app.setWindowIcon(QIcon("./icon.png"))
     
     config.load()

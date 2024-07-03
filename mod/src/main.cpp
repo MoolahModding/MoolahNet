@@ -28,7 +28,7 @@
 
 #define NEW_PD3
 
-//#define MOOLAHNET_DEVELOPMENT
+#define MOOLAHNET_DEVELOPMENT
 const char* MOOLAHNET_VERSION = "0.5";
 #define MOOLAHNET_SERVER_PORT 20250
 
@@ -39,7 +39,7 @@ const char* MOOLAHNET_VERSION = "0.5";
 #include <fstream>
 #endif
 
-int InternalHeistNameToLevelIdx(std::string InternalName) {
+int InternalHeistNameToLevelIdx(const std::string& InternalName) {
   /*
   * DefaultGame.ini
   * +Levels=/Game/Prototype/Maps/BranchBank/BranchBank.BranchBank
@@ -66,6 +66,7 @@ int InternalHeistNameToLevelIdx(std::string InternalName) {
     {"Station", 8},
     {"Villa", 9},
     {"DataCenter", 10},
+    {"Fort", 11},
   };
   return internalname_levelidx_map[InternalName];
 }
@@ -324,6 +325,8 @@ public:
   FString Region;
 #endif
 
+  FString GameSessionCode;
+
   FSBZArmadaInfo(const FSBZArmadaInfo& In) {
     this->IP = In.IP;
     this->PortGame = In.PortGame;
@@ -334,10 +337,12 @@ public:
 #ifdef NEW_PD3
     this->Region = In.Region;
 #endif
+
+    this->GameSessionCode = In.GameSessionCode;
   }
 
 #ifdef NEW_PD3
-  FSBZArmadaInfo(FString Ip, int PortGame, int PortBeacon, FString MatchId, FString ServerVersion, FString Region) : IP(Ip), PortGame(PortGame), PortBeacon(PortBeacon), MatchID(MatchId), ServerVersion(ServerVersion), Region(Region) {}
+  FSBZArmadaInfo(FString Ip, int PortGame, int PortBeacon, FString MatchId, FString ServerVersion, FString Region, FString GameSessionCode) : IP(Ip), PortGame(PortGame), PortBeacon(PortBeacon), MatchID(MatchId), ServerVersion(ServerVersion), Region(Region), GameSessionCode(GameSessionCode){}
 #else
   FSBZArmadaInfo(FString Ip, int PortGame, int PortBeacon, FString MatchId, FString ServerVersion) : IP(Ip), PortGame(PortGame), PortBeacon(PortBeacon), MatchID(MatchId), ServerVersion(ServerVersion) {}
 #endif
@@ -414,7 +419,7 @@ enum ESBZOnlineJoinType : uint8_t {
   Private,
   FriendsOnly,
   InviteOnly,
-  Default = 0x1,
+  Default = Public,
 };
 
 #define USBZStateMachineDataMatchmaking_align alignas(8)
@@ -452,7 +457,7 @@ public:
 typedef void(__fastcall* USBZMatchmaking__SetArmadaInfo_t)(USBZMatchmaking* _this, FSBZArmadaInfo* armadainfo);
 USBZMatchmaking__SetArmadaInfo_t USBZMatchmaking__SetArmadaInfo;
 
-typedef void(__fastcall* USBZStateMachine__SetState_t)(USBZStateMachine* _this, FName StateName, USBZStateMachineData* InData);
+typedef void(__fastcall* USBZStateMachine__SetState_t)(USBZStateMachine* _this, FName* StateName, USBZStateMachineData* InData);
 USBZStateMachine__SetState_t USBZStateMachine__SetState;
 
 
@@ -499,10 +504,10 @@ BOOL CALLBACK EnumWindowsCB(HWND handle, LPARAM param) {
 
   if (std::string(title).find("PAYDAY3", 0) != std::string::npos) {
     G_PD3WindowHandle = handle;
-    delete title;
+    delete[] title;
     return TRUE;
   }
-  delete title;
+  delete[] title;
   return FALSE;
 }
 HWND GetPAYDAY3Window() {
@@ -649,8 +654,8 @@ void __fastcall USBZMatchmaking__SetArmadaInfo_h(USBZMatchmaking* _this, FSBZArm
 
 std::wstring G_CurrentGameState;
 USBZStateMachine__SetState_t USBZStateMachine__SetState_o;
-void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName StateName, USBZStateMachineData* InData) {
-  std::cout << "USBZStateMachine is changing states to state: " << StateName << std::endl;
+void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName* StateName, USBZStateMachineData* InData) {
+  std::cout << "USBZStateMachine is changing states to state: " << wstr_to_string(StateName->ToString()) << std::endl;
 #ifdef MOOLAHNET_DEVELOPMENT
 
   if (*StateName == FName(STR("ABMatchmaking"))) {
@@ -664,7 +669,7 @@ void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName Stat
   }
 #endif
   //G_CurrentGameState = StateName->ToString();
-  G_CurrentGameState = StateName.ToString();
+  G_CurrentGameState = StateName->ToString();
   USBZStateMachine__SetState_o(_this, StateName, InData);
 }
 
@@ -691,7 +696,7 @@ void socket_message(const std::string& data) {
     return; // user is not in a state where they can join a match
   }
   
-  nlohmann::json session = nlohmann::json::parse(data);
+  //nlohmann::json session = nlohmann::json::parse(data);
 
   /*FString unreal_string = str_to_fstring(session[""]); // unreal string of party code
 
@@ -720,28 +725,46 @@ void socket_message(const std::string& data) {
 
   std::cout << data << std::endl;*/
 
-  nlohmann::json DSInformation = session["DSInformation"]["Server"];
-#ifdef MOOLAHNET_DEVELOPMENT
-#define LOG_TYPE(obj) \
-std::cout << #obj << " : " << obj.type_name() << std::endl;
+  //nlohmann::json DSInformation = session["DSInformation"]["Server"];
 
-  LOG_TYPE(DSInformation);
-  LOG_TYPE(DSInformation["ip"]);
-  LOG_TYPE(DSInformation["port"]);
-  LOG_TYPE(DSInformation["ports"]["beacon"]);
-  LOG_TYPE(DSInformation["session_id"]);
-  LOG_TYPE(DSInformation["game_version"]);
-  LOG_TYPE(DSInformation["region"]);
-#endif
+  //auto IP = str_to_fstring(DSInformation["ip"]);
+  //int PortGame = DSInformation["port"];
+  //int PortBeacon = DSInformation["ports"]["beacon"];
+  //auto MatchId = str_to_fstring(DSInformation["session_id"]);
+  //auto ServerVersion = str_to_fstring(DSInformation["game_version"]);
+  //auto Region = str_to_fstring(DSInformation["region"]);
 
-  auto IP = str_to_fstring(DSInformation["ip"]);
-  int PortGame = DSInformation["port"];
-  int PortBeacon = DSInformation["ports"]["beacon"];
-  auto MatchId = str_to_fstring(DSInformation["session_id"]);
-  auto ServerVersion = str_to_fstring(DSInformation["game_version"]);
-  auto Region = str_to_fstring(DSInformation["region"]);
+  /*
+  * MoolahNet UI sends json in the format
+  * {
+  *   "ip": "127.0.0.1",
+  *   "gameport": 1234,
+  *   "beaconport": 1234,
+  *   "matchid": "abcdef",
+  *   "serverversion": "705542",
+  *   "region": "au-west-01",
+  *   "difficultyidx": 3,
+  *   "mapassetname": "Fort",
+  *   "gamesessioncode": "AAAAAA"
+  * }
+  */
 
-  FSBZArmadaInfo armada_info = FSBZArmadaInfo(IP, PortGame, PortBeacon, MatchId, ServerVersion, Region);
+  nlohmann::json session_information = nlohmann::json::parse(data);
+  std::string IP = session_information["ip"];
+  int PortGame = session_information["gameport"];
+  int PortBeacon = session_information["beaconport"];
+  std::string MatchId = session_information["matchid"];
+  std::string ServerVersion = session_information["serverversion"];
+  std::string Region = session_information["region"];
+  std::string GameSessionCode = session_information["gamesessioncode"];
+
+  int DifficultyIdx = session_information["difficultyidx"];
+
+  std::string MapAssetName = session_information["mapassetname"];
+
+
+
+  FSBZArmadaInfo armada_info = FSBZArmadaInfo(str_to_fstring(IP), PortGame, PortBeacon, str_to_fstring(MatchId), str_to_fstring(ServerVersion), str_to_fstring(Region), str_to_fstring(GameSessionCode));
 
   USBZMatchmaking* matchmaking = (USBZMatchmaking*)RC::Unreal::UObjectGlobals::FindFirstOf(STR("SBZMatchmaking"));
 
@@ -753,7 +776,8 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
     (matchmaking, &armada_info);
 
   USBZStateMachine* statemachine = (USBZStateMachine*)RC::Unreal::UObjectGlobals::FindFirstOf(STR("SBZStateMachine"));
-  FName next_state = FName(STR("ABMatchmaking"));
+  //FName abmatchmaking = FName(STR("ABMatchmaking"));
+  FName abmatchmaking = FName(STR("Matchmaking"));
 
   using UClass = RC::Unreal::UClass;
   using UObject = RC::Unreal::UObject;
@@ -771,46 +795,7 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
 
   USBZStateMachineDataMatchmaking* in_data = RC::Unreal::UObjectGlobals::StaticConstructObject<USBZStateMachineDataMatchmaking*>(ConstructParams);
 
-  auto attributes = session["attributes"];
-
   //std::string MatchmakingCommand_String = attributes["Command"]; // "ESBZMatchmakingCommand::RegularMatchmaking"
-
-  std::string DifficultyIdx_String = "";
-#ifndef PAYDAY3_UPDATE_01_01_03
-  if (attributes.contains("DifficultyIdx")) {
-    DifficultyIdx_String = attributes["DifficultyIdx"];
-  }
-  else {
-    DifficultyIdx_String = attributes["DIFFICULTYIDX"]; // "3" - OVK
-  }
-#else
-  if (attributes.contains("DifficultyIdx")) {
-    if (attributes["DifficultyIdx"].is_array()) {
-      DifficultyIdx_String = attributes["DifficultyIdx"][0];
-    }
-    else {
-      DifficultyIdx_String = attributes["DifficultyIdx"];
-    }
-  }
-  else {
-    if (attributes["DIFFICULTYIDX"].is_array()) {
-      DifficultyIdx_String = attributes["DIFFICULTYIDX"][0]; // "3" - OVK
-    }
-    else {
-      DifficultyIdx_String = attributes["DIFFICULTYIDX"]; // "3" - OVK
-    }
-  }
-#endif
-
-  std::string mapAssetNameTest = "";
-
-  if (attributes.contains("MAPASSETNAMETEST")) {
-    mapAssetNameTest = attributes["MAPASSETNAMETEST"][0];
-  }
-  else {
-    mapAssetNameTest = attributes["MapAssetNameTest"][0];
-  }
-
   //std::string MMGroup_String = attributes["MMGroup"]; // "-1"
 
   //std::string MMRandomSeed_String = attributes["MMRandomSeed"]; // "0"
@@ -824,26 +809,27 @@ std::cout << #obj << " : " << obj.type_name() << std::endl;
   new (in_data) USBZStateMachineDataMatchmaking(
     FSBZOnlineMatchmakingParams(
       false, // QuickMatch
-      InternalHeistNameToLevelIdx(mapAssetNameTest), // could change, older versions of game session info used to contain the LevelIdx
-      std::stoi(DifficultyIdx_String), // DifficultyIdx
+      InternalHeistNameToLevelIdx(MapAssetName), // could change, older versions of game session info used to contain the LevelIdx
+      DifficultyIdx, // DifficultyIdx
       {},// { ESBZSecurityCompany::None }, // SecurityCompanies // RC::Unreal::TArray<ESBZSecurityCompany>()
       0, // MatchmakingRandomSeed
       ESBZMatchmakingCommand::RegularMatchmaking // Command
     ),
     TOptional<FSBZArmadaInfo>(armada_info),
-    FString(STR("")), // PartyCode
+    //FString(STR("")), // PartyCode
+    str_to_fstring(GameSessionCode),
     true, true, false, true,
     FString(STR("")), // Build Version
-    ESBZOnlineJoinType::Debug
+    ESBZOnlineJoinType::Public
   );
 
 
   //in_data.ServerInfo = TOptional<FSBZArmadaInfo>(armada_info);
 
   FreezeLobbyJoinedAnalytics = true;
-  G_CurrentGameState = next_state.ToString();
+  G_CurrentGameState = abmatchmaking.ToString();
   USBZStateMachine__SetState_o
-    (statemachine, next_state, in_data);
+    (statemachine, &abmatchmaking, in_data);
   FreezeLobbyJoinedAnalytics = false;
   return;
 }
@@ -1037,7 +1023,8 @@ public:
 
       MH_Initialize();
 
-      MH_CreateHook((LPVOID)USBZAnalyicsManager__SendLobbyJoined, USBZAnalyicsManager__SendLobbyJoined_h, reinterpret_cast<LPVOID*>(USBZAnalyicsManager__SendLobbyJoined_o));
+      //MH_CreateHook((LPVOID)USBZAnalyicsManager__SendLobbyJoined, USBZAnalyicsManager__SendLobbyJoined_h, reinterpret_cast<LPVOID*>(USBZAnalyicsManager__SendLobbyJoined_o));
+      MH_CreateHook((LPVOID)USBZAnalyicsManager__SendLobbyJoined, &USBZAnalyicsManager__SendLobbyJoined_h, reinterpret_cast<LPVOID*>(&USBZAnalyicsManager__SendLobbyJoined_o));
       MH_EnableHook((LPVOID)USBZAnalyicsManager__SendLobbyJoined);
 
       MH_CreateHook((LPVOID)USBZStateMachine__SetState, &USBZStateMachine__SetState_h, reinterpret_cast<LPVOID*>(&USBZStateMachine__SetState_o));
