@@ -65,8 +65,12 @@ int InternalHeistNameToLevelIdx(const std::string& InternalName) {
     {"Penthouse", 7},
     {"Station", 8},
     {"Villa", 9},
-    {"DataCenter", 10},
-    {"Fort", 11},
+    {"DataCenter", 10}, // Syntax Error
+    {"Fort", 11}, // Boys in Blue
+    {"Chus", 12}, // Houston Breakout (Land of the Free)
+    {"DiamondDistrict", 13},
+    {"Stonk", 14}, // Fear and Greed
+    {"ONE", 15},
   };
   return internalname_levelidx_map[InternalName];
 }
@@ -673,6 +677,22 @@ void __fastcall USBZStateMachine__SetState_h(USBZStateMachine* _this, FName* Sta
   USBZStateMachine__SetState_o(_this, StateName, InData);
 }
 
+struct MoolahNetServerJoinRequestInfo {
+public:
+  std::string IP;
+  int PortGame;
+  int PortBeacon;
+  std::string MatchId;
+  std::string ServerVersion;
+  std::string Region;
+  std::string GameSessionCode;
+  int DifficultyIdx;
+  std::string MapAssetName;
+};
+
+bool _pending_server_join_request = false;
+MoolahNetServerJoinRequestInfo _pending_server_join_request_info;
+
 masesk::EasySocket _server_socket;
 void socket_message(const std::string& data) {
 
@@ -762,75 +782,20 @@ void socket_message(const std::string& data) {
 
   std::string MapAssetName = session_information["mapassetname"];
 
+  if (_pending_server_join_request)
+    return;
+
+  _pending_server_join_request_info = MoolahNetServerJoinRequestInfo();
+  _pending_server_join_request_info.IP = IP;
+  _pending_server_join_request_info.PortGame = PortGame;
+  _pending_server_join_request_info.PortBeacon = PortBeacon;
+  _pending_server_join_request_info.MatchId = MatchId;
+  _pending_server_join_request_info.ServerVersion = ServerVersion;
+  _pending_server_join_request_info.Region = Region;
+  _pending_server_join_request_info.GameSessionCode = GameSessionCode;
+  _pending_server_join_request = true;
 
 
-  FSBZArmadaInfo armada_info = FSBZArmadaInfo(str_to_fstring(IP), PortGame, PortBeacon, str_to_fstring(MatchId), str_to_fstring(ServerVersion), str_to_fstring(Region), str_to_fstring(GameSessionCode));
-
-  USBZMatchmaking* matchmaking = (USBZMatchmaking*)RC::Unreal::UObjectGlobals::FindFirstOf(STR("SBZMatchmaking"));
-
-#ifdef MOOLAHNET_DEVELOPMENT
-  USBZMatchmaking__SetArmadaInfo_o
-#else
-  USBZMatchmaking__SetArmadaInfo
-#endif
-    (matchmaking, &armada_info);
-
-  USBZStateMachine* statemachine = (USBZStateMachine*)RC::Unreal::UObjectGlobals::FindFirstOf(STR("SBZStateMachine"));
-  //FName abmatchmaking = FName(STR("ABMatchmaking"));
-  FName abmatchmaking = FName(STR("Matchmaking"));
-
-  using UClass = RC::Unreal::UClass;
-  using UObject = RC::Unreal::UObject;
-  UClass* clazz = RC::Unreal::UObjectGlobals::StaticFindObject<UClass*>((UClass*)NULL, (UObject*)NULL, STR("/Script/Starbreeze.SBZStateMachineDataMatchmaking"));
-
-  RC::Unreal::FStaticConstructObjectParameters ConstructParams(clazz, nullptr);
-
-  ConstructParams.Name = RC::Unreal::NAME_None;
-  ConstructParams.SetFlags = RC::Unreal::RF_NoFlags;
-  ConstructParams.Template = nullptr;
-  ConstructParams.bCopyTransientsFromClassDefaults = false;
-  ConstructParams.InstanceGraph = nullptr;
-  ConstructParams.ExternalPackage = nullptr;
-  //ConstructParams;
-
-  USBZStateMachineDataMatchmaking* in_data = RC::Unreal::UObjectGlobals::StaticConstructObject<USBZStateMachineDataMatchmaking*>(ConstructParams);
-
-  //std::string MatchmakingCommand_String = attributes["Command"]; // "ESBZMatchmakingCommand::RegularMatchmaking"
-  //std::string MMGroup_String = attributes["MMGroup"]; // "-1"
-
-  //std::string MMRandomSeed_String = attributes["MMRandomSeed"]; // "0"
-
-  //std::string SecurityCompany_String = attributes["SecurityCompany"]; // "0"
-
-  //in_data->PreviousState = (USBZStateMachineState*)(statemachine + 0x48);
-
-
-  //USBZStateMachineDataMatchmaking* in_data = new USBZStateMachineDataMatchmaking(
-  new (in_data) USBZStateMachineDataMatchmaking(
-    FSBZOnlineMatchmakingParams(
-      false, // QuickMatch
-      InternalHeistNameToLevelIdx(MapAssetName), // could change, older versions of game session info used to contain the LevelIdx
-      DifficultyIdx, // DifficultyIdx
-      {},// { ESBZSecurityCompany::None }, // SecurityCompanies // RC::Unreal::TArray<ESBZSecurityCompany>()
-      0, // MatchmakingRandomSeed
-      ESBZMatchmakingCommand::RegularMatchmaking // Command
-    ),
-    TOptional<FSBZArmadaInfo>(armada_info),
-    //FString(STR("")), // PartyCode
-    str_to_fstring(GameSessionCode),
-    true, true, false, true,
-    FString(STR("")), // Build Version
-    ESBZOnlineJoinType::Public
-  );
-
-
-  //in_data.ServerInfo = TOptional<FSBZArmadaInfo>(armada_info);
-
-  FreezeLobbyJoinedAnalytics = true;
-  G_CurrentGameState = abmatchmaking.ToString();
-  USBZStateMachine__SetState_o
-    (statemachine, &abmatchmaking, in_data);
-  FreezeLobbyJoinedAnalytics = false;
   return;
 }
 
@@ -1040,6 +1005,68 @@ public:
       ;
     RC::Output::send<LogLevel::Normal>(STR("MoolahNet initialised"));
     CreateThread(NULL, NULL, socket_thread, (LPVOID)(&_server_socket), NULL, NULL);
+  }
+
+  void on_update() override {
+    if (_pending_server_join_request) {
+
+
+      FSBZArmadaInfo armada_info = FSBZArmadaInfo(str_to_fstring(_pending_server_join_request_info.IP), _pending_server_join_request_info.PortGame, _pending_server_join_request_info.PortBeacon, str_to_fstring(_pending_server_join_request_info.MatchId), str_to_fstring(_pending_server_join_request_info.ServerVersion), str_to_fstring(_pending_server_join_request_info.Region), str_to_fstring(_pending_server_join_request_info.GameSessionCode));
+
+      USBZMatchmaking* matchmaking = (USBZMatchmaking*)RC::Unreal::UObjectGlobals::FindFirstOf(STR("SBZMatchmaking"));
+
+#ifdef MOOLAHNET_DEVELOPMENT
+      USBZMatchmaking__SetArmadaInfo_o
+#else
+      USBZMatchmaking__SetArmadaInfo
+#endif
+        (matchmaking, &armada_info);
+
+      USBZStateMachine* statemachine = (USBZStateMachine*)RC::Unreal::UObjectGlobals::FindFirstOf(STR("SBZStateMachine"));
+      //FName abmatchmaking = FName(STR("ABMatchmaking"));
+      FName abmatchmaking = FName(STR("Matchmaking"));
+
+      using UClass = RC::Unreal::UClass;
+      using UObject = RC::Unreal::UObject;
+      UClass* clazz = RC::Unreal::UObjectGlobals::StaticFindObject<UClass*>((UClass*)NULL, (UObject*)NULL, STR("/Script/Starbreeze.SBZStateMachineDataMatchmaking"));
+
+      RC::Unreal::FStaticConstructObjectParameters ConstructParams(clazz, nullptr);
+
+      ConstructParams.Name = RC::Unreal::NAME_None;
+      ConstructParams.SetFlags = RC::Unreal::RF_NoFlags;
+      ConstructParams.Template = nullptr;
+      ConstructParams.bCopyTransientsFromClassDefaults = false;
+      ConstructParams.InstanceGraph = nullptr;
+      ConstructParams.ExternalPackage = nullptr;
+      //ConstructParams;
+
+      USBZStateMachineDataMatchmaking* in_data = RC::Unreal::UObjectGlobals::StaticConstructObject<USBZStateMachineDataMatchmaking*>(ConstructParams);
+
+      new (in_data) USBZStateMachineDataMatchmaking(
+        FSBZOnlineMatchmakingParams(
+          false, // QuickMatch
+          InternalHeistNameToLevelIdx(_pending_server_join_request_info.MapAssetName), // could change, older versions of game session info used to contain the LevelIdx
+          _pending_server_join_request_info.DifficultyIdx, // DifficultyIdx
+          {},// { ESBZSecurityCompany::None }, // SecurityCompanies // RC::Unreal::TArray<ESBZSecurityCompany>()
+          0, // MatchmakingRandomSeed
+          ESBZMatchmakingCommand::RegularMatchmaking // Command
+        ),
+        TOptional<FSBZArmadaInfo>(armada_info),
+        //FString(STR("")), // PartyCode
+        str_to_fstring(_pending_server_join_request_info.GameSessionCode),
+        true, true, false, true,
+        FString(STR("")), // Build Version
+        ESBZOnlineJoinType::Public
+      );
+
+
+      FreezeLobbyJoinedAnalytics = true;
+      G_CurrentGameState = abmatchmaking.ToString();
+      USBZStateMachine__SetState_o(statemachine, &abmatchmaking, in_data);
+      FreezeLobbyJoinedAnalytics = false;
+
+      _pending_server_join_request = false;
+    }
   }
 };
 

@@ -4,6 +4,7 @@ import base64
 import requests
 import qdarktheme
 import webbrowser
+import ssl
 from PyQt5.QtCore import Qt, pyqtSignal, QSize
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QGroupBox, QLabel, QTreeWidget, QTreeWidgetItem, QHeaderView, QPushButton, QComboBox, QCheckBox, QScrollArea, QLineEdit, QMessageBox
 from PyQt5.QtGui import QIcon
@@ -17,6 +18,8 @@ import socket
 MOOLAHNET_SOCKET_PORT = 20250
 MOOLAHNET_MWS_ID = "47524"
 MOOLAHNET_MWS_ENABLED = True
+
+#ssl._create_default_https_context = ssl._create_unverified_context
 
 config_file_path = "./MoolahNet-Config.json"
 class Config():
@@ -398,7 +401,8 @@ class ServerBrowser(QWidget):
         "Villa": "Cook Off",
         "Station": "Turbid Station",
         "DataCenter": "Syntax Error",
-        "Fort": "Boys in Blue"
+        "Fort": "Boys in Blue",
+        "Courthouse": "Land of the Free"
     }
 
     def map_level_to_name(self, internal_name):
